@@ -3,12 +3,13 @@ package secondary
 import (
 	"github.com/maxim-kuderko/service-template/pkg/requests"
 	"github.com/maxim-kuderko/service-template/pkg/responses"
+	"github.com/spf13/viper"
 )
 
 type Db struct {
 }
 
-func NewDb() Repo {
+func NewDb(v *viper.Viper) Repo {
 	return &Db{}
 }
 

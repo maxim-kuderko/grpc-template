@@ -1,18 +1,17 @@
 package initializers
 
 import (
+	"fmt"
 	"github.com/spf13/viper"
 	"os"
 )
 
 func NewConfig() *viper.Viper {
 	v := viper.New()
-	v.SetConfigFile(os.Getenv(`GO_ENV`))
-	v.SetConfigType(`env`)
-	v.AddConfigPath(`../configs`)
+	v.SetConfigFile(fmt.Sprintf(`./configs/%s.env`, os.Getenv(`GO_ENV`)))
+	v.AutomaticEnv()
 	if err := v.ReadInConfig(); err != nil {
 		panic(err)
 	}
-	v.AutomaticEnv()
 	return v
 }
