@@ -6,6 +6,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/spf13/viper v1.7.1
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.17.0 // indirect
 	go.opentelemetry.io/otel v0.17.0
 	go.opentelemetry.io/otel/exporters/otlp v0.17.0
 	go.opentelemetry.io/otel/exporters/stdout v0.17.0

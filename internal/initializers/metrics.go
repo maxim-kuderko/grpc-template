@@ -1,17 +1,57 @@
 package initializers
 
-import "github.com/spf13/viper"
+import (
+	"context"
+	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/stdout"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/propagation"
+	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
+	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
+	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/semconv"
+	"time"
+)
 
-func NewMetrics(v *viper.Viper) MetricsReporter {
-	return nil
-}
+func NewMetrics(v *viper.Viper) func() metric.MeterProvider {
+	ctx := context.Background()
+	exp, _ := stdout.NewExporter(stdout.WithPrettyPrint())
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String(v.GetString(`SERVICE_NAME`)),
+		),
+	)
+	bsp := sdktrace.NewBatchSpanProcessor(exp)
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+		sdktrace.WithResource(res),
+		sdktrace.WithSpanProcessor(bsp),
+	)
+	if err != nil {
+		panic(err)
+	}
 
-type MetricsReporter interface {
-	Send(name string, value float64, tags ...string)
-	Tracer(name string, tags ...string) Tracer
-}
+	cont := controller.New(
+		processor.New(
+			simple.NewWithHistogramDistribution(),
+			exp,
+		),
+		controller.WithPusher(exp),
+		controller.WithCollectPeriod(2*time.Second),
+	)
 
-type Tracer interface {
-	Start()
-	Stop()
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTracerProvider(tracerProvider)
+	global.SetMeterProvider(cont.MeterProvider())
+	if err := cont.Start(context.Background()); err != nil {
+		panic(err)
+	}
+	otel.SetTracerProvider(tracerProvider)
+	propagator := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
+	otel.SetTextMapPropagator(propagator)
+	return cont.MeterProvider
 }

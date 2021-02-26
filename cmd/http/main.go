@@ -11,6 +11,7 @@ import (
 	"github.com/maxim-kuderko/service-template/internal/service"
 	"github.com/maxim-kuderko/service-template/pkg/requests"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/fx"
 	"net/http"
 )
@@ -38,12 +39,12 @@ func main() {
 
 func router(h *handler) *httprouter.Router {
 	router := httprouter.New()
-	router.POST("/get", h.Get)
+	router.HandlerFunc(http.MethodPost, `/get`, h.Get)
 	return router
 }
 
 func webserver(r *httprouter.Router, v *viper.Viper) {
-	http.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), r)
+	http.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), otelhttp.NewHandler(r, v.GetString(`SERVICE_NAME`)))
 }
 
 type handler struct {
@@ -56,7 +57,7 @@ func newHandler(s *service.Service) *handler {
 	}
 }
 
-func (h *handler) Get(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (h *handler) Get(w http.ResponseWriter, r *http.Request) {
 	var req requests.Get
 	if parser(w, r, &req) != nil {
 		return
