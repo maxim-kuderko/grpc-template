@@ -14,12 +14,13 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv"
+	"io/ioutil"
 	"time"
 )
 
 func NewMetrics(v *viper.Viper) func() metric.MeterProvider {
 	ctx := context.Background()
-	exp, _ := stdout.NewExporter(stdout.WithPrettyPrint())
+	exp, _ := stdout.NewExporter(stdout.WithWriter(ioutil.Discard))
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(v.GetString(`SERVICE_NAME`)),
@@ -27,7 +28,7 @@ func NewMetrics(v *viper.Viper) func() metric.MeterProvider {
 	)
 	bsp := sdktrace.NewBatchSpanProcessor(exp)
 	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.TraceIDRatioBased(0.01)}),
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
@@ -41,7 +42,7 @@ func NewMetrics(v *viper.Viper) func() metric.MeterProvider {
 			exp,
 		),
 		controller.WithPusher(exp),
-		controller.WithCollectPeriod(2*time.Second),
+		controller.WithCollectPeriod(10*time.Second),
 	)
 
 	otel.SetTextMapPropagator(propagation.TraceContext{})

@@ -17,7 +17,6 @@ import (
 )
 
 func main() {
-
 	app := fx.New(
 		fx.NopLogger,
 		fx.Provide(
