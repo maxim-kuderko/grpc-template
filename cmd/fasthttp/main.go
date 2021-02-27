@@ -82,7 +82,12 @@ func parser(c *fasthttp.RequestCtx, req requests.BaseRequester) error {
 		c.SetStatusCode(http.StatusBadRequest)
 		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
 	}
-	req.WithContext(c.UserValue(`trace-ctx`).(context.Context))
+	switch v := c.UserValue(`trace-ctx`).(type) {
+	case context.Context:
+		req.WithContext(v)
+	default:
+		req.WithContext(c)
+	}
 	return nil
 }
 

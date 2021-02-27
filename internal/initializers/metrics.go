@@ -14,12 +14,13 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv"
+	"io/ioutil"
 	"time"
 )
 
 func NewMetrics(v *viper.Viper) func() metric.MeterProvider {
 	ctx := context.Background()
-	exp, _ := stdout.NewExporter(stdout.WithPrettyPrint())
+	exp, _ := stdout.NewExporter(stdout.WithWriter(ioutil.Discard))
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(v.GetString(`SERVICE_NAME`)),
