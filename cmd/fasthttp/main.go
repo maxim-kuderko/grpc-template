@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/fasthttp/router"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/maxim-kuderko/service-template/internal/initializers"
 	"github.com/maxim-kuderko/service-template/internal/repositories/primary"
@@ -10,12 +11,13 @@ import (
 	"github.com/maxim-kuderko/service-template/internal/service"
 	"github.com/maxim-kuderko/service-template/pkg/requests"
 	"github.com/opentracing/opentracing-go/log"
-	"github.com/qiangxue/fasthttp-routing"
 	"github.com/spf13/viper"
 	"github.com/valyala/fasthttp"
+	otelcontrib "go.opentelemetry.io/contrib"
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 	"net/http"
-	"time"
 )
 
 func main() {
@@ -28,7 +30,7 @@ func main() {
 			secondary.NewCachedDB,
 			service.NewService,
 			newHandler,
-			router,
+			route,
 		),
 		fx.Invoke(webserver),
 	)
@@ -38,15 +40,20 @@ func main() {
 	}
 }
 
-func router(h *handler) *routing.Router {
-	router := routing.New()
-	router.Post("/get", h.Get)
+func route(h *handler) *router.Router {
+	router := router.New()
+	router.POST("/get", h.Get)
 	return router
 }
 
-func webserver(r *routing.Router, v *viper.Viper) {
-	log.Error(fasthttp.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), r.HandleRequest))
-	time.Sleep(time.Minute)
+func webserver(r *router.Router, v *viper.Viper) {
+	tr := traceware{
+		service:     v.GetString(`SERVICE_NAME`),
+		tracer:      otel.GetTracerProvider().Tracer(`go-fasthttp`, oteltrace.WithInstrumentationVersion(otelcontrib.SemVersion())),
+		propagators: otel.GetTextMapPropagator(),
+	}
+
+	log.Error(fasthttp.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), tr.Handler(r.Handler)))
 }
 
 type handler struct {
@@ -59,35 +66,34 @@ func newHandler(s *service.Service) *handler {
 	}
 }
 
-func (h *handler) Get(c *routing.Context) error {
+func (h *handler) Get(ctx *fasthttp.RequestCtx) {
 	var req requests.Get
-	if err := parser(c, &req); err != nil {
-		return nil
+	if err := parser(ctx, &req); err != nil {
+		return
 	}
 	resp, err := h.s.Get(req)
-	return response(c, resp, err)
+	response(ctx, resp, err) // nolint
+	return
 }
 
-func parser(c *routing.Context, req requests.BaseRequester) error {
-	c.Serialize = jsoniter.Marshal
+func parser(c *fasthttp.RequestCtx, req requests.BaseRequester) error {
 	err := jsoniter.ConfigFastest.Unmarshal(c.PostBody(), &req)
 	if err != nil {
 		c.SetStatusCode(http.StatusBadRequest)
-		c.WriteData(err)
-		return err
+		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
 	}
-	req.WithContext(c)
+	req.WithContext(c.UserValue(`trace-ctx`).(context.Context))
 	return nil
 }
 
-func response(c *routing.Context, resp interface{}, err error) error {
+func response(c *fasthttp.RequestCtx, resp interface{}, err error) error {
 	if err != nil {
 		c.SetStatusCode(http.StatusInternalServerError)
-		return c.WriteData(err)
+		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
 	}
-	if err := c.WriteData(resp); err != nil {
+	if err := jsoniter.ConfigFastest.NewEncoder(c).Encode(resp); err != nil {
 		c.SetStatusCode(http.StatusInternalServerError)
-		return c.WriteData(err)
+		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
 	}
 	return nil
 }

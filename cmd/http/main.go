@@ -11,7 +11,9 @@ import (
 	"github.com/maxim-kuderko/service-template/internal/service"
 	"github.com/maxim-kuderko/service-template/pkg/requests"
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	otelcontrib "go.opentelemetry.io/contrib"
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 	"net/http"
 )
@@ -43,7 +45,13 @@ func router(h *handler) *httprouter.Router {
 }
 
 func webserver(r *httprouter.Router, v *viper.Viper) {
-	http.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), otelhttp.NewHandler(r, v.GetString(`SERVICE_NAME`)))
+	tr := traceware{
+		service:     v.GetString(`SERVICE_NAME`),
+		tracer:      otel.GetTracerProvider().Tracer(`go-httprouter`, oteltrace.WithInstrumentationVersion(otelcontrib.SemVersion())),
+		propagators: otel.GetTextMapPropagator(),
+		handler:     r,
+	}
+	http.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), tr)
 }
 
 type handler struct {
