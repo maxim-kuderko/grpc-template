@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/valyala/fasthttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/semconv"
@@ -14,18 +13,13 @@ type traceware struct {
 	propagators propagation.TextMapPropagator
 }
 
-// Handler implements the http.Handler interface. It does the actual
-// tracing of the request.
 func (tw traceware) Handler(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 	opts := []oteltrace.SpanOption{
 		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
 	}
 	return func(c *fasthttp.RequestCtx) {
 		ctx := tw.propagators.Extract(c, toTextMapCarrier{c: c})
-		spanName := c.Request.URI().String()
-		if spanName == "" {
-			spanName = fmt.Sprintf("HTTP %s route not found", c.Method())
-		}
+		spanName := string(c.Request.URI().Path())
 		ctx, span := tw.tracer.Start(ctx, spanName, opts...)
 		defer span.End()
 		c.SetUserValue(`trace-ctx`, ctx)
