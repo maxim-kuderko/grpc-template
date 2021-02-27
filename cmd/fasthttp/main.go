@@ -17,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
-	"net/http"
 )
 
 func main() {
@@ -79,7 +78,7 @@ func (h *handler) Get(ctx *fasthttp.RequestCtx) {
 func parser(c *fasthttp.RequestCtx, req requests.BaseRequester) error {
 	err := jsoniter.ConfigFastest.Unmarshal(c.PostBody(), &req)
 	if err != nil {
-		c.SetStatusCode(http.StatusBadRequest)
+		c.SetStatusCode(fasthttp.StatusBadRequest)
 		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
 	}
 	switch v := c.UserValue(`trace-ctx`).(type) {
@@ -93,11 +92,11 @@ func parser(c *fasthttp.RequestCtx, req requests.BaseRequester) error {
 
 func response(c *fasthttp.RequestCtx, resp interface{}, err error) error {
 	if err != nil {
-		c.SetStatusCode(http.StatusInternalServerError)
+		c.SetStatusCode(fasthttp.StatusInternalServerError)
 		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
 	}
 	if err := jsoniter.ConfigFastest.NewEncoder(c).Encode(resp); err != nil {
-		c.SetStatusCode(http.StatusInternalServerError)
+		c.SetStatusCode(fasthttp.StatusInternalServerError)
 		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
 	}
 	return nil

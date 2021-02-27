@@ -17,14 +17,14 @@ type traceware struct {
 // Handler implements the http.Handler interface. It does the actual
 // tracing of the request.
 func (tw traceware) Handler(h fasthttp.RequestHandler) fasthttp.RequestHandler {
+	opts := []oteltrace.SpanOption{
+		oteltrace.WithSpanKind(oteltrace.SpanKindServer),
+	}
 	return func(c *fasthttp.RequestCtx) {
 		ctx := tw.propagators.Extract(c, toTextMapCarrier{c: c})
-		spanName := string(c.RequestURI())
+		spanName := c.Request.URI().String()
 		if spanName == "" {
 			spanName = fmt.Sprintf("HTTP %s route not found", c.Method())
-		}
-		opts := []oteltrace.SpanOption{
-			oteltrace.WithSpanKind(oteltrace.SpanKindServer),
 		}
 		ctx, span := tw.tracer.Start(ctx, spanName, opts...)
 		defer span.End()
