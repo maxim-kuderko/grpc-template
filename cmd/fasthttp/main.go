@@ -7,9 +7,9 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/maxim-kuderko/service-template/internal/initializers"
 	"github.com/maxim-kuderko/service-template/internal/repositories/primary"
-	"github.com/maxim-kuderko/service-template/internal/repositories/secondary"
 	"github.com/maxim-kuderko/service-template/internal/service"
 	"github.com/maxim-kuderko/service-template/pkg/requests"
+	"github.com/maxim-kuderko/service-template/pkg/responses"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/spf13/viper"
 	"github.com/valyala/fasthttp"
@@ -26,7 +26,6 @@ func main() {
 			initializers.NewConfig,
 			initializers.NewMetrics,
 			primary.NewCachedDB,
-			secondary.NewCachedDB,
 			service.NewService,
 			newHandler,
 			route,
@@ -91,11 +90,14 @@ func parser(c *fasthttp.RequestCtx, req requests.BaseRequester) error {
 	return nil
 }
 
-func response(c *fasthttp.RequestCtx, resp interface{}, err error) error {
+func response(c *fasthttp.RequestCtx, resp responses.BaseResponser, err error) error {
+	c.SetContentType(`application/json`)
 	if err != nil {
 		c.SetStatusCode(fasthttp.StatusInternalServerError)
-		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
+		err := jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
+		return err
 	}
+	c.SetStatusCode(resp.ResponseStatusCode())
 	if err := jsoniter.ConfigFastest.NewEncoder(c).Encode(resp); err != nil {
 		c.SetStatusCode(fasthttp.StatusInternalServerError)
 		return jsoniter.ConfigFastest.NewEncoder(c).Encode(err)

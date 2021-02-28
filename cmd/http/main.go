@@ -7,10 +7,11 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/maxim-kuderko/service-template/internal/initializers"
 	"github.com/maxim-kuderko/service-template/internal/repositories/primary"
-	"github.com/maxim-kuderko/service-template/internal/repositories/secondary"
 	"github.com/maxim-kuderko/service-template/internal/service"
 	"github.com/maxim-kuderko/service-template/pkg/requests"
+	"github.com/maxim-kuderko/service-template/pkg/responses"
 	"github.com/spf13/viper"
+	"github.com/valyala/fasthttp"
 	otelcontrib "go.opentelemetry.io/contrib"
 	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -25,7 +26,6 @@ func main() {
 			initializers.NewConfig,
 			initializers.NewMetrics,
 			primary.NewCachedDB,
-			secondary.NewCachedDB,
 			service.NewService,
 			newHandler,
 			router,
@@ -88,10 +88,18 @@ func parser(w http.ResponseWriter, r *http.Request, req requests.BaseRequester) 
 	return err
 }
 
-func response(w http.ResponseWriter, resp interface{}, err error) {
+func response(w http.ResponseWriter, resp responses.BaseResponser, err error) {
+	w.Header().Set(`Content-Type`, `application/json`)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		jsoniter.ConfigFastest.NewEncoder(w).Encode(err)
 		return
 	}
-	jsoniter.ConfigFastest.NewEncoder(w).Encode(resp)
+	w.WriteHeader(resp.ResponseStatusCode())
+	if err := jsoniter.ConfigFastest.NewEncoder(w).Encode(resp); err != nil {
+		w.WriteHeader(fasthttp.StatusInternalServerError)
+		jsoniter.ConfigFastest.NewEncoder(w).Encode(err)
+		return
+	}
+	return
 }

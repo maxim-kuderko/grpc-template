@@ -2,7 +2,6 @@ package service
 
 import (
 	"github.com/maxim-kuderko/service-template/internal/repositories/primary"
-	"github.com/maxim-kuderko/service-template/internal/repositories/secondary"
 	"github.com/maxim-kuderko/service-template/pkg/requests"
 	"github.com/maxim-kuderko/service-template/pkg/responses"
 	"go.opentelemetry.io/otel/metric"
@@ -12,16 +11,14 @@ import (
 type ServiceFunc func(r interface{}) (interface{}, error)
 
 type Service struct {
-	primaryRepo   primary.Repo
-	secondaryRepo secondary.Repo
-	m             metric.Meter
+	primaryRepo primary.Repo
+	m           metric.Meter
 }
 
-func NewService(p primary.Repo, s secondary.Repo, metrics func() metric.MeterProvider) *Service {
+func NewService(p primary.Repo, metrics func() metric.MeterProvider) *Service {
 	return &Service{
-		primaryRepo:   p,
-		secondaryRepo: s,
-		m:             metrics().Meter(`service`),
+		primaryRepo: p,
+		m:           metrics().Meter(`service`),
 	}
 }
 
