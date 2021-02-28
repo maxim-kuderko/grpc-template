@@ -4,7 +4,8 @@ import (
 	"context"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/stdout"
+	"go.opentelemetry.io/otel/exporters/otlp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpgrpc"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
@@ -14,13 +15,15 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv"
-	"io/ioutil"
 	"time"
 )
 
 func NewMetrics(v *viper.Viper) func() metric.MeterProvider {
 	ctx := context.Background()
-	exp, _ := stdout.NewExporter(stdout.WithWriter(ioutil.Discard))
+	exp, _ := otlp.NewExporter(ctx, otlpgrpc.NewDriver(
+		otlpgrpc.WithInsecure(),
+		otlpgrpc.WithEndpoint(v.GetString(`OTLP_GRPC`)),
+	))
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(v.GetString(`SERVICE_NAME`)),
@@ -35,9 +38,6 @@ func NewMetrics(v *viper.Viper) func() metric.MeterProvider {
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
-	if err != nil {
-		panic(err)
-	}
 
 	cont := controller.New(
 		processor.New(
