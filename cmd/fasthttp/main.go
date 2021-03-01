@@ -13,9 +13,6 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/spf13/viper"
 	"github.com/valyala/fasthttp"
-	otelcontrib "go.opentelemetry.io/contrib"
-	"go.opentelemetry.io/otel"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 )
 
@@ -40,18 +37,13 @@ func main() {
 
 func route(h *handler) *router.Router {
 	router := router.New()
+	router.GET("/health", h.Health)
 	router.POST("/get", h.Get)
 	return router
 }
 
 func webserver(r *router.Router, v *viper.Viper) {
-	tr := traceware{
-		service:     v.GetString(`SERVICE_NAME`),
-		tracer:      otel.GetTracerProvider().Tracer(`go-fasthttp`, oteltrace.WithInstrumentationVersion(otelcontrib.SemVersion())),
-		propagators: otel.GetTextMapPropagator(),
-	}
-
-	log.Error(fasthttp.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), tr.Handler(r.Handler)))
+	log.Error(fasthttp.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), r.Handler))
 }
 
 type handler struct {
@@ -62,6 +54,9 @@ func newHandler(s *service.Service) *handler {
 	return &handler{
 		s: s,
 	}
+}
+func (h *handler) Health(ctx *fasthttp.RequestCtx) {
+
 }
 
 func (h *handler) Get(ctx *fasthttp.RequestCtx) {
@@ -81,12 +76,7 @@ func parser(c *fasthttp.RequestCtx, req requests.BaseRequester) error {
 		jsoniter.ConfigFastest.NewEncoder(c).Encode(err)
 		return err
 	}
-	switch v := c.UserValue(`trace-ctx`).(type) {
-	case context.Context:
-		req.WithContext(v)
-	default:
-		req.WithContext(c)
-	}
+	req.WithContext(c)
 	return nil
 }
 

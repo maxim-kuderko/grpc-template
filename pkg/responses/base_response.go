@@ -5,6 +5,9 @@ type BaseResponse struct {
 }
 
 func (br BaseResponse) ResponseStatusCode() int {
+	if br.StatusCode == 0 {
+		return 200
+	}
 	return br.StatusCode
 }
 
