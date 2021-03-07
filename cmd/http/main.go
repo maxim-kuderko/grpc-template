@@ -12,9 +12,6 @@ import (
 	"github.com/maxim-kuderko/service-template/pkg/responses"
 	"github.com/spf13/viper"
 	"github.com/valyala/fasthttp"
-	otelcontrib "go.opentelemetry.io/contrib"
-	"go.opentelemetry.io/otel"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 	"net/http"
 )
@@ -45,13 +42,7 @@ func router(h *handler) *httprouter.Router {
 }
 
 func webserver(r *httprouter.Router, v *viper.Viper) {
-	tr := traceware{
-		service:     v.GetString(`SERVICE_NAME`),
-		tracer:      otel.GetTracerProvider().Tracer(`go-httprouter`, oteltrace.WithInstrumentationVersion(otelcontrib.SemVersion())),
-		propagators: otel.GetTextMapPropagator(),
-		handler:     r,
-	}
-	http.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), tr)
+	http.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), r)
 }
 
 type handler struct {

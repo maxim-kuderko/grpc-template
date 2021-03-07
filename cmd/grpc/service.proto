@@ -1,0 +1,16 @@
+syntax = "proto3";
+option go_package = "main";
+
+service Template {
+	// Sends a greeting
+	rpc Get (GetRequest) returns (GetResponse) {}
+}
+
+message GetRequest {
+	string key = 1;
+}
+
+// The response message containing the greetings
+message GetResponse {
+	string value = 1;
+}
