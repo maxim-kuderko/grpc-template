@@ -21,7 +21,6 @@ func main() {
 		fx.NopLogger,
 		fx.Provide(
 			initializers.NewConfig,
-			initializers.NewMetrics,
 			primary.NewCachedDB,
 			service.NewService,
 			newHandler,

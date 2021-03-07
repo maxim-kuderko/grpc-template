@@ -14,10 +14,9 @@ type Service struct {
 	m           metric.Meter
 }
 
-func NewService(p primary.Repo, metrics func() metric.MeterProvider) *Service {
+func NewService(p primary.Repo) *Service {
 	return &Service{
 		primaryRepo: p,
-		m:           metrics().Meter(`service`),
 	}
 }
 

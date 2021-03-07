@@ -19,27 +19,25 @@ func main() {
 		fx.NopLogger,
 		fx.Provide(
 			initializers.NewConfig,
-			initializers.NewMetrics,
 			primary.NewCachedDB,
 			service.NewService,
 			newServer,
 		),
 		fx.Invoke(grpcInit),
 	)
-
 	if err := app.Start(context.Background()); err != nil {
 		panic(err)
 	}
 }
 
-func grpcInit(v *viper.Viper) {
+func grpcInit(s TemplateServer, v *viper.Viper) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", v.GetString(`GRPC_SERVER_PORT`)))
 	if err != nil {
 		panic(err)
 	}
-	s := grpc.NewServer()
-	RegisterTemplateServer(s, &server{})
-	if err := s.Serve(lis); err != nil {
+	serv := grpc.NewServer()
+	RegisterTemplateServer(serv, s)
+	if err := serv.Serve(lis); err != nil {
 		panic(err)
 	}
 }
