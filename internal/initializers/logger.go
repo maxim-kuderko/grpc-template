@@ -6,6 +6,7 @@ import (
 )
 
 const defaultLogLevel = logrus.WarnLevel
+const logLevelEnvVar = `LOG_LEVEL`
 
 func init() {
 	initLogger()
@@ -15,7 +16,7 @@ func initLogger() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 	logrus.SetOutput(os.Stdout)
 	lvl := defaultLogLevel
-	if v := os.Getenv(`LOG_LEVEL`); v != `` {
+	if v := os.Getenv(logLevelEnvVar); v != `` {
 		if tmp, err := logrus.ParseLevel(v); err != nil {
 			lvl = tmp
 		}
