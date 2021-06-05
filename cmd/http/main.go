@@ -1,10 +1,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
+	gs "github.com/maxim-kuderko/graceful-shutdown"
 	"github.com/maxim-kuderko/service-template/internal/initializers"
 	"github.com/maxim-kuderko/service-template/internal/repositories/primary"
 	"github.com/maxim-kuderko/service-template/internal/service"
@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	app := fx.New(
+	go fx.New(
 		fx.NopLogger,
 		fx.Provide(
 			initializers.NewConfig,
@@ -28,10 +28,7 @@ func main() {
 		),
 		fx.Invoke(webserver),
 	)
-
-	if err := app.Start(context.Background()); err != nil {
-		panic(err)
-	}
+	gs.WaitForGrace()
 }
 
 func router(h *handler) *httprouter.Router {

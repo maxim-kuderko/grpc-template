@@ -1,23 +1,23 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/fasthttp/router"
 	jsoniter "github.com/json-iterator/go"
+	gs "github.com/maxim-kuderko/graceful-shutdown"
 	"github.com/maxim-kuderko/service-template/internal/initializers"
 	"github.com/maxim-kuderko/service-template/internal/repositories/primary"
 	"github.com/maxim-kuderko/service-template/internal/service"
 	"github.com/maxim-kuderko/service-template/pkg/requests"
 	"github.com/maxim-kuderko/service-template/pkg/responses"
-	"github.com/opentracing/opentracing-go/log"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/valyala/fasthttp"
 	"go.uber.org/fx"
 )
 
 func main() {
-	app := fx.New(
+	go fx.New(
 		fx.NopLogger,
 		fx.Provide(
 			initializers.NewConfig,
@@ -28,21 +28,17 @@ func main() {
 		),
 		fx.Invoke(webserver),
 	)
-
-	if err := app.Start(context.Background()); err != nil {
-		panic(err)
-	}
+	gs.WaitForGrace()
 }
 
 func route(h *handler) *router.Router {
 	router := router.New()
-	router.GET("/health", h.Health)
 	router.POST("/get", h.Get)
 	return router
 }
 
 func webserver(r *router.Router, v *viper.Viper) {
-	log.Error(fasthttp.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), r.Handler))
+	logrus.Error(fasthttp.ListenAndServe(fmt.Sprintf(`:%s`, v.GetString(`HTTP_SERVER_PORT`)), r.Handler))
 }
 
 type handler struct {
@@ -53,9 +49,6 @@ func newHandler(s *service.Service) *handler {
 	return &handler{
 		s: s,
 	}
-}
-func (h *handler) Health(ctx *fasthttp.RequestCtx) {
-
 }
 
 func (h *handler) Get(ctx *fasthttp.RequestCtx) {
